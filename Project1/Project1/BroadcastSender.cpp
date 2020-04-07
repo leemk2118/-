@@ -7,8 +7,12 @@
 #define REMOTEIP   "255.255.255.255" //브로드 케스트 주소로 예약되어 있음
 #define REMOTEPORT 9000
 #define BUFSIZE    512
-#define SURVEY "다음 중 2020년 최고의 선수는?\n\n1.박용택\n2.오지환\n3.김현수\n4.이형종\n5.이천용\n"
+#define SURVEY "다음 중 2020년 최고의 선수는?\n\n 1.박용택\n2.오지환\n3.김현수\n4.이형종\n5. 이천용\n"
 
+struct WINNER {
+	char name[20];
+	int point=0;
+};
 // 소켓 함수 오류 출력 후 종료
 void err_quit(char* msg)
 {
@@ -39,7 +43,13 @@ void err_display(char* msg)
 int main(int argc, char* argv[])
 {
 	int retval;
+	struct WINNER winner[5];
 
+	strcpy(winner[0].name, "박용택");
+	strcpy(winner[1].name, "오지환");
+	strcpy(winner[2].name, "김현수");
+	strcpy(winner[3].name, "이형종");
+	strcpy(winner[4].name, "이천용");
 	// 윈속 초기화
 	WSADATA wsa;
 	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
@@ -63,7 +73,6 @@ int main(int argc, char* argv[])
 	remoteaddr.sin_port = htons(REMOTEPORT); // 각 호스트의 9000번 포트 번호로 한 번에 보내겠다
 
 	// 데이터 통신에 사용할 변수
-	SOCKADDR_IN pearaddr;
 	int addrlen;
 	char buf[BUFSIZE + 1];
 	int len;
@@ -73,13 +82,6 @@ int main(int argc, char* argv[])
 	{
 		// 데이터 입력
 		strcpy(buf, SURVEY);
-
-		// '\n' 문자 제거
-		len = strlen(buf);
-		if (buf[len - 1] == '\n')
-			buf[len - 1] = '\0';
-		if (strlen(buf) == 0)
-			break;
 
 		// 데이터 보내기
 		retval = sendto(sock, buf, strlen(buf), 0,
@@ -91,44 +93,26 @@ int main(int argc, char* argv[])
 		printf("[UDP] %d바이트를 보냈습니다.\n", retval);
 
 		int count = 0;
-		int check[5];
-		int best=0;
-		while (count > 5)
+		while (count < 5)
 		{
-			addrlen = sizeof(peeraddr);
-			retval = recvfrom(sock, buf,BUFSIZE, 0,
-				(SOCKADDR*)& peeraddr, &addrlen);
+			addrlen = sizeof(remoteaddr);
+			retval = recvfrom(sock,(char*)&len, sizeof(int), 0,
+				(SOCKADDR*)& remoteaddr, &addrlen);
 			if (retval == SOCKET_ERROR) {
 				err_display("recvfrom()");
 				continue;
 			}
 
-			// 송신자의 IP 주소 체크(데이터를 보낸 곳과 받은 곳의 IP 주소가 동일한지 확인)
-			if (memcmp(&peeraddr, &serveraddr, sizeof(peeraddr))) {
-				printf("[오류] 잘못된 데이터입니다!\n");
-				continue;
-			}
-
-			memcpy(&best, buf, sizeof(int));
-			printf("%d\n", best);
-
-			if (best == '1')
-				check[0]++;
-			else if (best == '2')
-				check[1]++;
-			else if (best == '3')
-				check[2]++;
-			else if (best == '4')
-				check[3]++;
-			else if (best == '5')
-				check[4]++;
-
+			winner[len - 1].point++;
 			count++;
+			printf("현재 투표수 : %d\n",count);
 		}
-		printf(" 설문이 완료되었습니다.\n");
-		printf(" [결과]\n박용택 : %d\n오지환 : %d\n김현수 : %d\n이형종 : %d\n이천용 %d",
-			check[0], check[1], check[2], check[3], check[4]);
 
+		printf("설문이 완료되었습니다\n");
+		for (int i = 0; i < 5; i++)
+		{
+			printf("%s : %d\n", winner[i].name, winner[i].point);
+		}
 		break;
 	}
 
